@@ -7,6 +7,7 @@ RedisClient::RedisClient(IPAddress srv) {
 
 uint8_t RedisClient::connect() {
     if (connected()) {
+        flushResult();
         return 1;
     }
     
@@ -70,6 +71,47 @@ uint8_t  RedisClient::startHSET(char* key) {
     sendArg("HSET");
     sendArg(key);
 }
+
+uint8_t RedisClient::endPUBLISH(uint16_t *subscribers) {
+    if (resultType() == RedisResult_INTEGER) {
+        *subscribers = resultInt();
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+uint8_t RedisClient::endPUBLISH() {
+    uint16_t subscribers;
+    return endPUBLISH(&subscribers);
+}
+
+
+uint8_t RedisClient::endHSET() {
+    if (resultType() == RedisResult_INTEGER) {
+        resultInt(); // throw away result
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+
+uint8_t RedisClient::endRPUSH(uint16_t *listitems) {
+    if (resultType() == RedisResult_INTEGER) {
+        *listitems = resultInt();
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+uint8_t RedisClient::endRPUSH() {
+    uint16_t listitems;
+    return endPUBLISH(&listitems);
+}
+
+
 
 
 uint8_t  RedisClient::startHSET(char* key, uint16_t index) {
@@ -197,6 +239,21 @@ uint16_t RedisClient::resultBulk(char *buffer, uint16_t buffer_size) {
     read(); read();
     
     return result_size;
+}
+
+
+void RedisClient::flushResult() {
+    switch (resultType()) {
+        case RedisResult_SINGLELINE:
+        case RedisResult_ERROR:
+            char buffer[200];
+            readSingleline(buffer);
+            break;
+            
+        case RedisResult_INTEGER:
+            readInt();
+            break;
+    }
 }
 
 

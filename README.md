@@ -28,7 +28,15 @@ These commands do require more arguments. Bad things will happen if you forget t
 	client.sendArg(buffer, buffer_len);// binary data
 	client.sendArg(20);                // Integer values
 	
-You do not have to call a specify function to finish these commands. But this may change in the future. Use these methods to check the result type and get the result.
+You do have to call a specify function to finish these commands. They are all named end* and always return 1 on success, 0 on failure. Some of them pass additional informations to pointers supplied to the method.
+
+    uint8_t endPUBLISH(uint16_t *subscribers);
+    uint8_t endPUBLISH();
+    uint8_t endHSET();
+    uint8_t endRPUSH(uint16_t *listitems);
+    uint8_t endRPUSH();
+
+If above methods return 0 you may use these methods to get more details about the actual result which is most likely an error message
 
 	client.resultType();               // Returns a value from RedisResult enumeration
 	client.resultStatus(char *buffer);	// Reads status result (mostly OK) into buffer
@@ -39,6 +47,8 @@ You may repeat client.resultType() as often as you like but all the other result
 
 
 ## Example Sketch
+A quite ugly example but it shows how to use the results and has some basic error handling.
+
 	IPAddress server(192, 168, 42, 10);
 	RedisClient client(server);
 	
@@ -55,10 +65,17 @@ You may repeat client.resultType() as often as you like but all the other result
 	}
 	
 	void loop() {
+
 		Serial.print("Publishing to pub/sub channel... ");
 	    client.startPUBLISH("test");
 	    client.sendArg("some data");
-	    Serial.println(client.resultInt());
+	    uint16_t subscribers;
+    	if (client.endPUBLISH(&subscribers)) {
+	    	Serial.print("Sent to ");
+    		Serial.print(subscribers, DEC);
+	    	Serial.println(" subscribers.");
+    	} else
+			Serial.println("FAILED!");
 
 	    Serial.print("Getting new ID from Redis... ");
     	uint16_t newid = client.INCR("sequence");
@@ -68,22 +85,27 @@ You may repeat client.resultType() as often as you like but all the other result
     	client.startHSET("rawin", newid);
 	    client.sendArg("data");
     	client.sendArgRFMData("some data here");
-	    Serial.println(client.resultInt());
+	    if (client.endHSET())
+    		Serial.println("ok");
+	    else
+    		Serial.println("FAILURE!");
     
-	    Serial.print("Adding timestamp to new hash... ");
-    	client.startHSET("rawin", newid);
-	    client.sendArg("timestamp");
-    	client.sendArg(-1);
-	    Serial.println(client.resultInt());
-
     	Serial.print("Adding new hash to fifo... ");
 	    client.startRPUSH("testlist");
     	client.sendArg(newid);
-	    uint16_t listitems = client.resultInt();
-    	Serial.println(listitems);
+    	uint16_t listitems;
+	    if (client.endRPUSH(&listitems)) {
+      		Serial.print("Now ");
+      		Serial.print(listitems, DEC);
+      		Serial.println(" items in list.");
+    	} else
+      		Serial.println("FAILURE!");
 
 	    if (listitems > 100) {
-    	  Serial.print("Cutting list to 100 items... ");
-	      client.LTRIM("testlist", 0, 99);
+    	  	Serial.print("Cutting list to 100 items... ");
+	      	if (client.LTRIM("testlist", 0, 99))
+	      		Serial.println("ok");
+	      	else
+	      		Serial.println("FAILURE!");
     	}
 	}

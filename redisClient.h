@@ -30,7 +30,7 @@ public:
     uint8_t  GET(char* key);   // returns 1 on success, get value using resultBulk(buffer, buflen)
     
     
-    // commands needing arguments using sendArg(...)
+    // commands needing arguments using sendArg(...) and ending using end*
     uint8_t startPUBLISH(char* channel); // needs one argument
     uint8_t startHSET(char* key);        // needs TWO arguments
     uint8_t startHSET(char* key, uint16_t index); // needs TWO arguments
@@ -42,6 +42,15 @@ public:
     void sendArg(uint8_t* arg, uint8_t len);
     void sendArg(int arg);
     void sendArgRFMData(uint8_t header, uint8_t *data, uint8_t data_len); // format RFM12B packet
+    
+    
+    // end commands started using start*
+    // all return 1 on success, 0 on failure
+    uint8_t endPUBLISH(uint16_t *subscribers);
+    uint8_t endPUBLISH();
+    uint8_t endHSET();
+    uint8_t endRPUSH(uint16_t *listitems);
+    uint8_t endRPUSH();
     
     
     // read back results
@@ -72,6 +81,7 @@ private:
     // internal commands to parse redis results
     uint16_t readSingleline(char *buffer);
     uint16_t readInt();
+    void flushResult();
 };
 
 #endif
