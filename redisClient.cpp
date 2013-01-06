@@ -225,6 +225,7 @@ uint16_t RedisClient::resultError(char *buffer) {
 }
 
 
+// Note: buffer_size has to be bigger than result as result there'll be always a \0 appendet
 uint16_t RedisClient::resultBulk(char *buffer, uint16_t buffer_size) {
     if (resultType() != RedisResult_BULK)
         return 0;
@@ -234,6 +235,7 @@ uint16_t RedisClient::resultBulk(char *buffer, uint16_t buffer_size) {
         delay(1);
     
     read((uint8_t*)buffer, result_size);
+    buffer[result_size] = '\0';
     
     // throw away newline
     read(); read();
